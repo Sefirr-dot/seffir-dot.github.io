@@ -22,18 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate config.js from secrets
+      - name: Inject secrets into index.html
         run: |
-          cat > config.js << EOF
-          export const firebaseConfig = {
-            apiKey:        "${{ secrets.FIREBASE_API_KEY }}",
-            authDomain:    "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
-            databaseURL:   "${{ secrets.FIREBASE_DATABASE_URL }}",
-            projectId:     "${{ secrets.FIREBASE_PROJECT_ID }}",
-            storageBucket: "${{ secrets.FIREBASE_STORAGE_BUCKET }}",
-          };
-          export const PASSWORD_HASH = "${{ secrets.PASSWORD_HASH }}";
-          EOF
+          sed -i "s|PLACEHOLDER_API_KEY|${{ secrets.FIREBASE_API_KEY }}|g" index.html
+          sed -i "s|PLACEHOLDER_AUTH_DOMAIN|${{ secrets.FIREBASE_AUTH_DOMAIN }}|g" index.html
+          sed -i "s|PLACEHOLDER_DATABASE_URL|${{ secrets.FIREBASE_DATABASE_URL }}|g" index.html
+          sed -i "s|PLACEHOLDER_PROJECT_ID|${{ secrets.FIREBASE_PROJECT_ID }}|g" index.html
+          sed -i "s|PLACEHOLDER_STORAGE_BUCKET|${{ secrets.FIREBASE_STORAGE_BUCKET }}|g" index.html
+          sed -i "s|PLACEHOLDER_PASSWORD_HASH|${{ secrets.PASSWORD_HASH }}|g" index.html
 
       - uses: actions/configure-pages@v5
 

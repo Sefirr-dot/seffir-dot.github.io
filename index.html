@@ -472,7 +472,14 @@
     import { getDatabase, ref, onValue, set, remove }                 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     import { getStorage, ref as sRef, uploadBytesResumable,
              deleteObject }                                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-    import { firebaseConfig, PASSWORD_HASH }                          from "./config.js";
+    const firebaseConfig = {
+      apiKey:        "PLACEHOLDER_API_KEY",
+      authDomain:    "PLACEHOLDER_AUTH_DOMAIN",
+      databaseURL:   "PLACEHOLDER_DATABASE_URL",
+      projectId:     "PLACEHOLDER_PROJECT_ID",
+      storageBucket: "PLACEHOLDER_STORAGE_BUCKET",
+    };
+    const PASSWORD_HASH = "PLACEHOLDER_PASSWORD_HASH";
 
     /* ─── PASSWORD (SHA-256) ─── */
 
