@@ -471,7 +471,7 @@
     import { initializeApp }                                          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue, set, remove }                 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     import { getStorage, ref as sRef, uploadBytesResumable,
-             getDownloadURL, deleteObject }                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+             deleteObject }                                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
     import { firebaseConfig }                                         from "./config.js";
 
     /* ─── PASSWORD (SHA-256) ─── */
@@ -711,7 +711,8 @@
           },
           async () => {
             try {
-              const url = await getDownloadURL(task.snapshot.ref);
+              const encodedPath = encodeURIComponent(path).replace(/%2F/g, "%2F");
+              const url = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodedPath}?alt=media`;
               await set(ref(db, `files/${id}`), {
                 name: file.name,
                 size: file.size,
