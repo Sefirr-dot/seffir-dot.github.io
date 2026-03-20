@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MikiPastebin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #141414;
+      --border:    #2a2a2a;
+      --accent:    #e8ff47;
+      --accent2:   #47ffe8;
+      --text:      #d4d4d4;
+      --muted:     #555;
+      --danger:    #ff4747;
+      --font:      'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow: hidden;
+    }
+
+    /* ─── NOISE OVERLAY ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      opacity: 0.025;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ══════════════════════════════════════
+       PASSWORD OVERLAY
+    ══════════════════════════════════════ */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    #overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .lock-icon {
+      font-size: 2rem;
+      margin-bottom: 2rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .overlay-title {
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+    }
+
+    .pw-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .pw-input-wrap {
+      position: relative;
+      width: 100%;
+    }
+    .pw-input-wrap::before {
+      content: '//';
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    #pwInput {
+      width: 100%;
+      padding: 0.85rem 1rem 0.85rem 2.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 1rem;
+      letter-spacing: 0.2em;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #pwInput:focus { border-color: var(--accent); }
+    #pwInput::placeholder { color: var(--muted); letter-spacing: 0.1em; }
+
+    #pwError {
+      font-size: 0.68rem;
+      letter-spacing: 0.15em;
+      color: var(--danger);
+      height: 1em;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #pwError.show { opacity: 1; }
+
+    #pwBtn {
+      width: 100%;
+      padding: 0.85rem;
+      background: var(--accent);
+      color: #0d0d0d;
+      border: none;
+      border-radius: 4px;
+      font-family: var(--font);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #pwBtn:hover  { background: #f5ff7a; }
+    #pwBtn:active { transform: scale(0.98); }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-8px); }
+      40%       { transform: translateX(8px); }
+      60%       { transform: translateX(-5px); }
+      80%       { transform: translateX(5px); }
+    }
+    .shake { animation: shake 0.35s ease; }
+
+    /* ══════════════════════════════════════
+       MAIN APP
+    ══════════════════════════════════════ */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      opacity: 0;
+      transition: opacity 0.5s ease 0.1s;
+    }
+    #app.visible { opacity: 1; }
+
+    /* ─── HEADER ─── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      height: 48px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .logo {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .logo span { color: var(--muted); font-weight: 300; }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .status-dot.connected { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+    .status-dot.syncing   { background: var(--accent);  box-shadow: 0 0 6px var(--accent); animation: blink 0.6s ease infinite; }
+    @keyframes blink { 50% { opacity: 0.2; } }
+
+    /* ─── PANES ─── */
+    .panes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .pane:last-child { border-right: none; }
+
+    .pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      height: 38px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .pane-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .pane:first-child .pane-label { color: var(--accent); }
+    .pane:last-child  .pane-label { color: var(--accent2); }
+
+    .char-count {
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+    }
+
+    textarea {
+      flex: 1;
+      width: 100%;
+      padding: 1.25rem;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.88rem;
+      line-height: 1.7;
+      caret-color: var(--accent);
+    }
+    textarea::selection { background: rgba(232,255,71,0.18); }
+    textarea::-webkit-scrollbar { width: 4px; }
+    textarea::-webkit-scrollbar-track { background: transparent; }
+    textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ─── MOBILE ─── */
+    @media (max-width: 640px) {
+      .panes { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+      .pane  { border-right: none; border-bottom: 1px solid var(--border); }
+      .pane:last-child { border-bottom: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PASSWORD OVERLAY -->
+  <div id="overlay">
+    <div class="lock-icon">▓▓▓</div>
+    <p class="overlay-title">Acceso restringido</p>
+    <div class="pw-box">
+      <div class="pw-input-wrap">
+        <input id="pwInput" type="password" placeholder="contraseña" autocomplete="off" />
+      </div>
+      <p id="pwError">contraseña incorrecta</p>
+      <button id="pwBtn">Entrar</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app">
+    <header>
+      <span class="logo">Miki<span>Pastebin</span></span>
+      <div class="status-dot" id="statusDot" title="desconectado"></div>
+    </header>
+    <div class="panes">
+      <div class="pane">
+        <div class="pane-header">
+          <span class="pane-label">Ordenador 1</span>
+          <span class="char-count" id="count1">0 chars</span>
+        </div>
+        <textarea id="text1" placeholder="Pega o escribe aquí..."></textarea>
+      </div>
+      <div class="pane">
+        <div class="pane-header">
+          <span class="pane-label">Ordenador 2</span>
+          <span class="char-count" id="count2">0 chars</span>
+        </div>
+        <textarea id="text2" placeholder="Pega o escribe aquí..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       FIREBASE CONFIG — rellena estos valores
+       después de crear tu proyecto en Firebase
+  ══════════════════════════════════════ -->
+  <script type="module">
+    import { initializeApp }                from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey:            "AIzaSyCVvG4nN8c8nb2hwSH1UtluUVzJL9Y8PH8",         // ← reemplaza
+      authDomain:        "mikipaste-74101.firebaseapp.com ",     // ← reemplaza
+      databaseURL:       "https://mikipaste-74101-default-rtdb.europe-west1.firebasedatabase.app",    // ← reemplaza (termina en .firebaseio.com)
+      projectId:         "mikipaste-74101",      // ← reemplaza
+    };
+
+    /* ─── PASSWORD ─── */
+    const PASSWORD = "1234567890"; // ← cambia si quieres otra contraseña
+
+    const overlay  = document.getElementById("overlay");
+    const app      = document.getElementById("app");
+    const pwInput  = document.getElementById("pwInput");
+    const pwBtn    = document.getElementById("pwBtn");
+    const pwError  = document.getElementById("pwError");
+
+    function tryUnlock() {
+      if (pwInput.value === PASSWORD) {
+        overlay.classList.add("hidden");
+        app.classList.add("visible");
+        initFirebase();
+      } else {
+        pwInput.classList.remove("shake");
+        void pwInput.offsetWidth; // reflow para reiniciar animación
+        pwInput.classList.add("shake");
+        pwError.classList.add("show");
+        pwInput.value = "";
+        setTimeout(() => pwError.classList.remove("show"), 2000);
+      }
+    }
+
+    pwBtn.addEventListener("click", tryUnlock);
+    pwInput.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+
+    /* ─── FIREBASE ─── */
+    function initFirebase() {
+      const firebaseApp = initializeApp(firebaseConfig);
+      const db = getDatabase(firebaseApp);
+
+      const ref1 = ref(db, "paste/ordenador1");
+      const ref2 = ref(db, "paste/ordenador2");
+
+      const dot    = document.getElementById("statusDot");
+      const ta1    = document.getElementById("text1");
+      const ta2    = document.getElementById("text2");
+      const count1 = document.getElementById("count1");
+      const count2 = document.getElementById("count2");
+
+      let syncing1 = false; // evita bucle de escritura al recibir update
+      let syncing2 = false;
+      let timer1, timer2;
+
+      dot.classList.add("connected");
+
+      /* ── Leer desde Firebase ── */
+      onValue(ref1, snap => {
+        const val = snap.val() ?? "";
+        if (!syncing1) { ta1.value = val; }
+        count1.textContent = val.length + " chars";
+      });
+
+      onValue(ref2, snap => {
+        const val = snap.val() ?? "";
+        if (!syncing2) { ta2.value = val; }
+        count2.textContent = val.length + " chars";
+      });
+
+      /* ── Escribir a Firebase (debounced 500ms) ── */
+      function handleInput(ta, dbRef, syncFlag, counter, setFlag) {
+        counter.textContent = ta.value.length + " chars";
+        dot.classList.add("syncing");
+        dot.classList.remove("connected");
+        setFlag(true);
+        clearTimeout(setFlag._timer);
+        setFlag._timer = setTimeout(() => {
+          set(dbRef, ta.value)
+            .then(() => {
+              dot.classList.remove("syncing");
+              dot.classList.add("connected");
+              setFlag(false);
+            })
+            .catch(() => {
+              dot.classList.remove("syncing", "connected");
+              setFlag(false);
+            });
+        }, 500);
+      }
+
+      // Wrapping setters para mantener referencia limpia
+      const set1 = v => { syncing1 = v; };
+      const set2 = v => { syncing2 = v; };
+      set1._timer = null;
+      set2._timer = null;
+
+      ta1.addEventListener("input", () => handleInput(ta1, ref1, syncing1, count1, set1));
+      ta2.addEventListener("input", () => handleInput(ta2, ref2, syncing2, count2, set2));
+    }
+  </script>
+</body>
+</html>
