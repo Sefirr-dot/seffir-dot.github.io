@@ -489,7 +489,7 @@
 
     async function tryUnlock() {
       const hash = await sha256(pwInput.value);
-      if (hash === PASSWORD_HASH) {
+      if (hash === PASSWORD_HASH.trim()) {
         overlay.classList.add("hidden");
         appEl.classList.add("visible");
         initFirebase();
