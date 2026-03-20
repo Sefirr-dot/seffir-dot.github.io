@@ -710,17 +710,23 @@
             progressBar.style.width = "0%";
           },
           async () => {
-            const url = await getDownloadURL(task.snapshot.ref);
-            await set(ref(db, `files/${id}`), {
-              name: file.name,
-              size: file.size,
-              path,
-              url,
-              uploadedAt: now,
-              expiresAt:  now + TTL,
-            });
-            uploadBtn.disabled = false;
-            setTimeout(() => { progressBar.style.width = "0%"; }, 400);
+            try {
+              const url = await getDownloadURL(task.snapshot.ref);
+              await set(ref(db, `files/${id}`), {
+                name: file.name,
+                size: file.size,
+                path,
+                url,
+                uploadedAt: now,
+                expiresAt:  now + TTL,
+              });
+            } catch (err) {
+              console.error("Error tras subida:", err);
+              alert("El archivo se subió pero no se pudo registrar: " + err.message);
+            } finally {
+              uploadBtn.disabled = false;
+              setTimeout(() => { progressBar.style.width = "0%"; }, 400);
+            }
           }
         );
       }
