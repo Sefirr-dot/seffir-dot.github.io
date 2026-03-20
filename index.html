@@ -325,8 +325,14 @@
       projectId:         "mikipaste-74101",      // ← reemplaza
     };
 
-    /* ─── PASSWORD ─── */
-    const PASSWORD = "1234567890"; // ← cambia si quieres otra contraseña
+    /* ─── PASSWORD (SHA-256) ─── */
+    // Para cambiar la contraseña, genera el hash SHA-256 del nuevo valor y reemplaza la cadena de abajo.
+    const PASSWORD_HASH = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; // SHA-256 de "1234"
+
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
 
     const overlay  = document.getElementById("overlay");
     const app      = document.getElementById("app");
@@ -334,14 +340,15 @@
     const pwBtn    = document.getElementById("pwBtn");
     const pwError  = document.getElementById("pwError");
 
-    function tryUnlock() {
-      if (pwInput.value === PASSWORD) {
+    async function tryUnlock() {
+      const hash = await sha256(pwInput.value);
+      if (hash === PASSWORD_HASH) {
         overlay.classList.add("hidden");
         app.classList.add("visible");
         initFirebase();
       } else {
         pwInput.classList.remove("shake");
-        void pwInput.offsetWidth; // reflow para reiniciar animación
+        void pwInput.offsetWidth;
         pwInput.classList.add("shake");
         pwError.classList.add("show");
         pwInput.value = "";
