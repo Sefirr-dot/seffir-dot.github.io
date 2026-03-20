@@ -6,3 +6,5 @@ export const firebaseConfig = {
   projectId:      "FIREBASE_PROJECT_ID",
   storageBucket:  "FIREBASE_STORAGE_BUCKET",
 };
+
+export const PASSWORD_HASH = "SHA256_DE_TU_CONTRASEÑA";
