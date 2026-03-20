@@ -26,10 +26,11 @@ jobs:
         run: |
           cat > config.js << EOF
           export const firebaseConfig = {
-            apiKey:      "${{ secrets.FIREBASE_API_KEY }}",
-            authDomain:  "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
-            databaseURL: "${{ secrets.FIREBASE_DATABASE_URL }}",
-            projectId:   "${{ secrets.FIREBASE_PROJECT_ID }}",
+            apiKey:        "${{ secrets.FIREBASE_API_KEY }}",
+            authDomain:    "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
+            databaseURL:   "${{ secrets.FIREBASE_DATABASE_URL }}",
+            projectId:     "${{ secrets.FIREBASE_PROJECT_ID }}",
+            storageBucket: "${{ secrets.FIREBASE_STORAGE_BUCKET }}",
           };
           EOF
 

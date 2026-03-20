@@ -208,6 +208,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       flex: 1;
+      min-height: 0;
       overflow: hidden;
     }
 
@@ -263,11 +264,154 @@
     textarea::-webkit-scrollbar-track { background: transparent; }
     textarea::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+    /* ─── FILES PANEL ─── */
+    .files-panel {
+      border-top: 1px solid var(--border);
+      height: 158px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      transition: border-top-color 0.2s;
+    }
+    .files-panel.drag-over {
+      border-top-color: var(--accent);
+      background: rgba(232, 255, 71, 0.02);
+    }
+
+    .files-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.25rem;
+      height: 38px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .files-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .upload-btn {
+      font-family: var(--font);
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #0d0d0d;
+      background: var(--accent);
+      border: none;
+      border-radius: 3px;
+      padding: 0.3rem 0.8rem;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .upload-btn:hover    { background: #f5ff7a; }
+    .upload-btn:disabled { background: var(--muted); cursor: default; }
+
+    .upload-progress {
+      height: 2px;
+      background: transparent;
+      flex-shrink: 0;
+    }
+    .upload-progress-bar {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.15s;
+    }
+
+    .files-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 1.25rem;
+    }
+    .files-list::-webkit-scrollbar { width: 4px; }
+    .files-list::-webkit-scrollbar-track { background: transparent; }
+    .files-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .files-empty {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.45rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .file-item:last-child { border-bottom: none; }
+
+    .file-name {
+      flex: 1;
+      font-size: 0.72rem;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-size {
+      font-size: 0.62rem;
+      color: var(--muted);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .file-timer {
+      font-size: 0.62rem;
+      color: var(--accent2);
+      white-space: nowrap;
+      flex-shrink: 0;
+      min-width: 2.8rem;
+      text-align: right;
+    }
+    .file-timer.expiring { color: var(--danger); }
+
+    .file-dl {
+      font-family: var(--font);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.1rem 0.25rem;
+      border-radius: 2px;
+      text-decoration: none;
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .file-dl:hover { color: var(--accent2); }
+
+    .file-del {
+      font-family: var(--font);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.1rem 0.25rem;
+      border-radius: 2px;
+      flex-shrink: 0;
+      transition: color 0.15s;
+    }
+    .file-del:hover { color: var(--danger); }
+
     /* ─── MOBILE ─── */
     @media (max-width: 640px) {
       .panes { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
       .pane  { border-right: none; border-bottom: 1px solid var(--border); }
       .pane:last-child { border-bottom: none; }
+      .files-panel { height: 170px; }
     }
   </style>
 </head>
@@ -308,37 +452,47 @@
         <textarea id="text2" placeholder="Pega o escribe aquí..."></textarea>
       </div>
     </div>
+
+    <!-- FILES PANEL -->
+    <div class="files-panel" id="filesPanel">
+      <div class="files-header">
+        <span class="files-label">Archivos · 10 min</span>
+        <button class="upload-btn" id="uploadBtn">+ Subir</button>
+        <input type="file" id="fileInput" style="display:none" />
+      </div>
+      <div class="upload-progress"><div class="upload-progress-bar" id="progressBar"></div></div>
+      <div class="files-list" id="filesList">
+        <span class="files-empty">ningún archivo activo</span>
+      </div>
+    </div>
   </div>
 
-  <!-- ══════════════════════════════════════
-       FIREBASE CONFIG — rellena estos valores
-       después de crear tu proyecto en Firebase
-  ══════════════════════════════════════ -->
   <script type="module">
-    import { initializeApp }                from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-    import { firebaseConfig }               from "./config.js";
+    import { initializeApp }                                          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue, set, remove }                 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getStorage, ref as sRef, uploadBytesResumable,
+             getDownloadURL, deleteObject }                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+    import { firebaseConfig }                                         from "./config.js";
 
     /* ─── PASSWORD (SHA-256) ─── */
-    // Para cambiar la contraseña, genera el hash SHA-256 del nuevo valor y reemplaza la cadena de abajo.
-    const PASSWORD_HASH = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; 
+    const PASSWORD_HASH = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4";
 
     async function sha256(str) {
       const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
     }
 
-    const overlay  = document.getElementById("overlay");
-    const app      = document.getElementById("app");
-    const pwInput  = document.getElementById("pwInput");
-    const pwBtn    = document.getElementById("pwBtn");
-    const pwError  = document.getElementById("pwError");
+    const overlay = document.getElementById("overlay");
+    const appEl   = document.getElementById("app");
+    const pwInput = document.getElementById("pwInput");
+    const pwBtn   = document.getElementById("pwBtn");
+    const pwError = document.getElementById("pwError");
 
     async function tryUnlock() {
       const hash = await sha256(pwInput.value);
       if (hash === PASSWORD_HASH) {
         overlay.classList.add("hidden");
-        app.classList.add("visible");
+        appEl.classList.add("visible");
         initFirebase();
       } else {
         pwInput.classList.remove("shake");
@@ -356,7 +510,8 @@
     /* ─── FIREBASE ─── */
     function initFirebase() {
       const firebaseApp = initializeApp(firebaseConfig);
-      const db = getDatabase(firebaseApp);
+      const db      = getDatabase(firebaseApp);
+      const storage = getStorage(firebaseApp);
 
       const ref1 = ref(db, "paste/ordenador1");
       const ref2 = ref(db, "paste/ordenador2");
@@ -367,9 +522,8 @@
       const count1 = document.getElementById("count1");
       const count2 = document.getElementById("count2");
 
-      let syncing1 = false; // evita bucle de escritura al recibir update
+      let syncing1 = false;
       let syncing2 = false;
-      let timer1, timer2;
 
       dot.classList.add("connected");
 
@@ -387,7 +541,7 @@
       });
 
       /* ── Escribir a Firebase (debounced 500ms) ── */
-      function handleInput(ta, dbRef, syncFlag, counter, setFlag) {
+      function handleInput(ta, dbRef, counter, setFlag) {
         counter.textContent = ta.value.length + " chars";
         dot.classList.add("syncing");
         dot.classList.remove("connected");
@@ -407,14 +561,185 @@
         }, 500);
       }
 
-      // Wrapping setters para mantener referencia limpia
       const set1 = v => { syncing1 = v; };
       const set2 = v => { syncing2 = v; };
       set1._timer = null;
       set2._timer = null;
 
-      ta1.addEventListener("input", () => handleInput(ta1, ref1, syncing1, count1, set1));
-      ta2.addEventListener("input", () => handleInput(ta2, ref2, syncing2, count2, set2));
+      ta1.addEventListener("input", () => handleInput(ta1, ref1, count1, set1));
+      ta2.addEventListener("input", () => handleInput(ta2, ref2, count2, set2));
+
+      /* ══════════════════════════════════════
+         ARCHIVOS TEMPORALES
+      ══════════════════════════════════════ */
+      const filesRef   = ref(db, "files");
+      const uploadBtn  = document.getElementById("uploadBtn");
+      const fileInput  = document.getElementById("fileInput");
+      const progressBar = document.getElementById("progressBar");
+      const filesPanel = document.getElementById("filesPanel");
+      const filesList  = document.getElementById("filesList");
+
+      const MAX_SIZE = 100 * 1024 * 1024; // 100 MB
+      const TTL      = 10 * 60 * 1000;    // 10 minutos
+
+      /* ── Helpers ── */
+      function formatSize(bytes) {
+        if (bytes < 1024)             return bytes + " B";
+        if (bytes < 1024 * 1024)      return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+      }
+
+      function formatCountdown(ms) {
+        if (ms <= 0) return "00:00";
+        const s = Math.floor(ms / 1000);
+        const m = Math.floor(s / 60);
+        return String(m).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+      }
+
+      /* ── Borrar un archivo (Storage + DB) ── */
+      async function deleteFile(id, path) {
+        try { await deleteObject(sRef(storage, path)); } catch (_) {}
+        await remove(ref(db, `files/${id}`));
+      }
+
+      /* ── Renderizar lista ── */
+      function renderFiles(data) {
+        filesList.innerHTML = "";
+        const entries = Object.entries(data).sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+
+        if (entries.length === 0) {
+          const empty = document.createElement("span");
+          empty.className = "files-empty";
+          empty.textContent = "ningún archivo activo";
+          filesList.appendChild(empty);
+          return;
+        }
+
+        const now = Date.now();
+        for (const [id, meta] of entries) {
+          const item = document.createElement("div");
+          item.className = "file-item";
+
+          const name = document.createElement("span");
+          name.className = "file-name";
+          name.textContent = meta.name;
+          name.title = meta.name;
+
+          const size = document.createElement("span");
+          size.className = "file-size";
+          size.textContent = formatSize(meta.size);
+
+          const timer = document.createElement("span");
+          timer.className = "file-timer";
+          timer.dataset.expires = meta.expiresAt;
+          const remaining = meta.expiresAt - now;
+          timer.textContent = formatCountdown(remaining);
+          if (remaining < 60000) timer.classList.add("expiring");
+
+          const dl = document.createElement("a");
+          dl.className = "file-dl";
+          dl.textContent = "↓";
+          dl.title = "Descargar";
+          dl.href = meta.url;
+          dl.download = meta.name;
+          dl.target = "_blank";
+          dl.rel = "noopener";
+
+          const del = document.createElement("button");
+          del.className = "file-del";
+          del.textContent = "✕";
+          del.title = "Borrar";
+          del.addEventListener("click", () => deleteFile(id, meta.path));
+
+          item.append(name, size, timer, dl, del);
+          filesList.appendChild(item);
+        }
+      }
+
+      /* ── Intervalo de countdown ── */
+      setInterval(() => {
+        const now = Date.now();
+        document.querySelectorAll(".file-timer[data-expires]").forEach(el => {
+          const remaining = parseInt(el.dataset.expires) - now;
+          el.textContent = formatCountdown(remaining);
+          el.classList.toggle("expiring", remaining < 60000);
+        });
+      }, 1000);
+
+      /* ── Listener en tiempo real + limpieza ── */
+      onValue(filesRef, snap => {
+        const data = snap.val() || {};
+        const now  = Date.now();
+
+        // Borrar expirados silenciosamente
+        for (const [id, meta] of Object.entries(data)) {
+          if (meta.expiresAt < now) deleteFile(id, meta.path);
+        }
+
+        // Filtrar expirados del render
+        const active = Object.fromEntries(
+          Object.entries(data).filter(([, m]) => m.expiresAt >= now)
+        );
+        renderFiles(active);
+      });
+
+      /* ── Subida ── */
+      async function uploadFile(file) {
+        if (file.size > MAX_SIZE) {
+          alert(`Tamaño máximo: 100 MB (el archivo pesa ${formatSize(file.size)})`);
+          return;
+        }
+
+        uploadBtn.disabled = true;
+        const id   = crypto.randomUUID();
+        const path = `files/${id}/${file.name}`;
+        const now  = Date.now();
+
+        const task = uploadBytesResumable(sRef(storage, path), file);
+
+        task.on("state_changed",
+          snap => {
+            progressBar.style.width = (snap.bytesTransferred / snap.totalBytes * 100) + "%";
+          },
+          () => {
+            uploadBtn.disabled = false;
+            progressBar.style.width = "0%";
+          },
+          async () => {
+            const url = await getDownloadURL(task.snapshot.ref);
+            await set(ref(db, `files/${id}`), {
+              name: file.name,
+              size: file.size,
+              path,
+              url,
+              uploadedAt: now,
+              expiresAt:  now + TTL,
+            });
+            uploadBtn.disabled = false;
+            setTimeout(() => { progressBar.style.width = "0%"; }, 400);
+          }
+        );
+      }
+
+      uploadBtn.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", e => {
+        if (e.target.files[0]) uploadFile(e.target.files[0]);
+        fileInput.value = "";
+      });
+
+      /* ── Drag & drop ── */
+      filesPanel.addEventListener("dragover", e => {
+        e.preventDefault();
+        filesPanel.classList.add("drag-over");
+      });
+      filesPanel.addEventListener("dragleave", e => {
+        if (!filesPanel.contains(e.relatedTarget)) filesPanel.classList.remove("drag-over");
+      });
+      filesPanel.addEventListener("drop", e => {
+        e.preventDefault();
+        filesPanel.classList.remove("drag-over");
+        if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]);
+      });
     }
   </script>
 </body>
