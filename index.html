@@ -685,6 +685,10 @@
 
       /* ── Subida ── */
       async function uploadFile(file) {
+        if (document.querySelectorAll(".file-item").length >= 1) {
+          alert("Solo se permite un archivo activo a la vez. Borra el actual primero.");
+          return;
+        }
         if (file.size > MAX_SIZE) {
           alert(`Tamaño máximo: 100 MB (el archivo pesa ${formatSize(file.size)})`);
           return;
