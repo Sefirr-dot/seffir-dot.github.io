@@ -317,13 +317,7 @@
   <script type="module">
     import { initializeApp }                from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-    const firebaseConfig = {
-      apiKey:            "AIzaSyCVvG4nN8c8nb2hwSH1UtluUVzJL9Y8PH8",         // ← reemplaza
-      authDomain:        "mikipaste-74101.firebaseapp.com ",     // ← reemplaza
-      databaseURL:       "https://mikipaste-74101-default-rtdb.europe-west1.firebasedatabase.app",    // ← reemplaza (termina en .firebaseio.com)
-      projectId:         "mikipaste-74101",      // ← reemplaza
-    };
+    import { firebaseConfig }               from "./config.js";
 
     /* ─── PASSWORD (SHA-256) ─── */
     // Para cambiar la contraseña, genera el hash SHA-256 del nuevo valor y reemplaza la cadena de abajo.

@@ -1,0 +1,7 @@
+// Copia este archivo como config.js y rellena los valores (no hagas commit de config.js)
+export const firebaseConfig = {
+  apiKey:      "FIREBASE_API_KEY",
+  authDomain:  "FIREBASE_AUTH_DOMAIN",
+  databaseURL: "FIREBASE_DATABASE_URL",
+  projectId:   "FIREBASE_PROJECT_ID",
+};
