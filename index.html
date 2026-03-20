@@ -598,7 +598,11 @@
 
       /* ── Borrar un archivo (Storage + DB) ── */
       async function deleteFile(id, path) {
-        try { await deleteObject(sRef(storage, path)); } catch (_) {}
+        try {
+          await deleteObject(sRef(storage, path));
+        } catch (err) {
+          console.error("deleteObject failed:", err.code, path);
+        }
         await remove(ref(db, `files/${id}`));
       }
 
