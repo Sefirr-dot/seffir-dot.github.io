@@ -447,8 +447,8 @@
     import { getDatabase, ref, onValue, set, remove }                 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     import { getStorage, ref as sRef, uploadBytesResumable,
              deleteObject }                                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut,
-             onAuthStateChanged }                                     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+             signOut, onAuthStateChanged }                            from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey:        "PLACEHOLDER_API_KEY",
@@ -474,14 +474,17 @@
     const signOutBtn = document.getElementById("signOutBtn");
     const pwError    = document.getElementById("pwError");
 
-    signInBtn.addEventListener("click", async () => {
+    // Redirect flow (no popup, no third-party cookies) — robust on GitHub Pages.
+    // Surface any error coming back from the redirect.
+    getRedirectResult(auth).catch(err => {
+      console.error("Auth redirect error:", err.code, err.message);
+      pwError.textContent = "error: " + err.code;
+      pwError.classList.add("show");
+    });
+
+    signInBtn.addEventListener("click", () => {
       pwError.classList.remove("show");
-      try {
-        await signInWithPopup(auth, new GoogleAuthProvider());
-      } catch (err) {
-        pwError.textContent = "no se pudo iniciar sesión";
-        pwError.classList.add("show");
-      }
+      signInWithRedirect(auth, new GoogleAuthProvider());
     });
 
     signOutBtn.addEventListener("click", () => signOut(auth));
