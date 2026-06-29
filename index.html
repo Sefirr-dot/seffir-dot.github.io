@@ -447,7 +447,7 @@
     import { getDatabase, ref, onValue, set, remove }                 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     import { getStorage, ref as sRef, uploadBytesResumable,
              deleteObject }                                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-    import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult,
+    import { getAuth, GoogleAuthProvider, signInWithPopup,
              signOut, onAuthStateChanged }                            from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
@@ -474,17 +474,18 @@
     const signOutBtn = document.getElementById("signOutBtn");
     const pwError    = document.getElementById("pwError");
 
-    // Redirect flow (no popup, no third-party cookies) — robust on GitHub Pages.
-    // Surface any error coming back from the redirect.
-    getRedirectResult(auth).catch(err => {
-      console.error("Auth redirect error:", err.code, err.message);
-      pwError.textContent = "error: " + err.code;
-      pwError.classList.add("show");
-    });
-
-    signInBtn.addEventListener("click", () => {
+    // Popup flow: returns via postMessage (no full-page redirect handler),
+    // which avoids the cross-domain "requested action is invalid" issue you hit
+    // with signInWithRedirect when the app domain != authDomain.
+    signInBtn.addEventListener("click", async () => {
       pwError.classList.remove("show");
-      signInWithRedirect(auth, new GoogleAuthProvider());
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      } catch (err) {
+        console.error("Auth popup error:", err.code, err.message);
+        pwError.textContent = "error: " + err.code;
+        pwError.classList.add("show");
+      }
     });
 
     signOutBtn.addEventListener("click", () => signOut(auth));
