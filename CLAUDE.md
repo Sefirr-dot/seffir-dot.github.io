@@ -16,15 +16,27 @@ Pushing to `main` triggers `.github/workflows/deploy.yml`, which:
 1. Uses `sed` to inject secrets directly into `index.html` (replacing `PLACEHOLDER_*` strings)
 2. Deploys to GitHub Pages
 
-Required GitHub Actions secrets: `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_DATABASE_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `PASSWORD_HASH`.
+Required GitHub Actions secrets: `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_DATABASE_URL`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`.
 
-There is no `config.js` in production — secrets live inside `index.html` after the build step. `config.js.example` is just a reference listing the required values.
+The injected Firebase web config is **not** sensitive — the `apiKey` only identifies the project. It is injected via secrets purely to keep it out of the committed source; the real access control is the security rules (see below). `config.js.example` is just a reference listing the values.
+
+## Security model
+
+Access is controlled by **Firebase Authentication (Google sign-in)** plus **security rules**, NOT by a client-side password. The earlier `PASSWORD_HASH` gate was cosmetic — a SHA-256 hash shipped in public HTML, trivially bypassed (the data lives in Firebase, not behind the JS check). It has been removed.
+
+- **Auth**: the overlay offers "Entrar con Google" (`signInWithPopup`). `onAuthStateChanged` reveals the app only when signed in.
+- **Authorisation**: enforced server-side. `database.rules.json` and `storage.rules` restrict read+write to a single `auth.uid` (the owner). These files are reference copies — apply them in the Firebase Console (Realtime Database → Rules, Storage → Rules) with your own UID.
+- **Setup**: in Firebase Console enable Google as a sign-in provider, add the GitHub Pages domain to Authorized domains, sign in once to obtain your UID (Authentication → Users), then paste that UID into both rule sets.
+
+> Never put a privileged token (e.g. a GitHub PAT) into the client HTML. A prior
+> "self-destruct" feature injected a repo-deleting token into the public page —
+> any visitor could have read it and deleted the repo. It has been removed.
 
 ## Architecture
 
 All code is in `index.html`. Key sections:
 
-- **Password gate**: SHA-256 hash via Web Crypto API. `PASSWORD_HASH` is injected at build time.
+- **Auth gate**: Firebase Authentication with Google sign-in. App is shown via `onAuthStateChanged`; real authorisation is enforced by the security rules (single owner `auth.uid`).
 - **Paste sync**: Firebase Realtime Database paths `paste/ordenador1` and `paste/ordenador2`. `onValue()` listeners for reads; debounced (500ms) `set()` writes. A `syncing` flag per pane prevents write-loops.
 - **File hosting**: Firebase Storage under `files/{uuid}/{filename}`. Metadata (name, size, path, url, uploadedAt, expiresAt) stored in Realtime Database under `files/`. TTL is 10 minutes, max 100 MB, max 1 file active at a time. Cleanup runs on every app load via the `onValue` listener — expired entries are deleted from both Storage and DB. Download URLs are constructed directly (`firebasestorage.googleapis.com/v0/b/...`) instead of calling `getDownloadURL` to avoid auth issues.
 - **UI**: Dual-pane split screen + bottom files panel. Dark theme, yellow/cyan accents, JetBrains Mono. UI language is Spanish.

@@ -29,7 +29,6 @@ jobs:
           sed -i "s|PLACEHOLDER_DATABASE_URL|${{ secrets.FIREBASE_DATABASE_URL }}|g" index.html
           sed -i "s|PLACEHOLDER_PROJECT_ID|${{ secrets.FIREBASE_PROJECT_ID }}|g" index.html
           sed -i "s|PLACEHOLDER_STORAGE_BUCKET|${{ secrets.FIREBASE_STORAGE_BUCKET }}|g" index.html
-          sed -i "s|PLACEHOLDER_PASSWORD_HASH|${{ secrets.PASSWORD_HASH }}|g" index.html
 
       - uses: actions/configure-pages@v5
 

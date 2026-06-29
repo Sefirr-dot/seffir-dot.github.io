@@ -1,0 +1,15 @@
+rules_version = '2';
+
+// Firebase Storage security rules.
+// Apply in Firebase Console -> Storage -> Rules.
+// Replace TU_UID_DE_GOOGLE with your own auth.uid (Authentication -> Users).
+// Without this, uploaded files are readable/writable by anyone on the internet.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == 'TU_UID_DE_GOOGLE';
+    }
+  }
+}

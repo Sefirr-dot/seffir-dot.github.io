@@ -91,38 +91,6 @@
       max-width: 320px;
     }
 
-    .pw-input-wrap {
-      position: relative;
-      width: 100%;
-    }
-    .pw-input-wrap::before {
-      content: '//';
-      position: absolute;
-      left: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--accent);
-      font-size: 0.8rem;
-      font-weight: 700;
-      pointer-events: none;
-    }
-
-    #pwInput {
-      width: 100%;
-      padding: 0.85rem 1rem 0.85rem 2.75rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 1rem;
-      letter-spacing: 0.2em;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    #pwInput:focus { border-color: var(--accent); }
-    #pwInput::placeholder { color: var(--muted); letter-spacing: 0.1em; }
-
     #pwError {
       font-size: 0.68rem;
       letter-spacing: 0.15em;
@@ -134,7 +102,7 @@
     }
     #pwError.show { opacity: 1; }
 
-    #pwBtn {
+    #signInBtn {
       width: 100%;
       padding: 0.85rem;
       background: var(--accent);
@@ -149,17 +117,24 @@
       cursor: pointer;
       transition: background 0.15s, transform 0.1s;
     }
-    #pwBtn:hover  { background: #f5ff7a; }
-    #pwBtn:active { transform: scale(0.98); }
+    #signInBtn:hover  { background: #f5ff7a; }
+    #signInBtn:active { transform: scale(0.98); }
 
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      20%       { transform: translateX(-8px); }
-      40%       { transform: translateX(8px); }
-      60%       { transform: translateX(-5px); }
-      80%       { transform: translateX(5px); }
+    #signOutBtn {
+      font-family: var(--font);
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0.3rem 0.7rem;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
     }
-    .shake { animation: shake 0.35s ease; }
+    #signOutBtn:hover { color: var(--danger); border-color: var(--danger); }
 
     /* ══════════════════════════════════════
        MAIN APP
@@ -417,16 +392,13 @@
 </head>
 <body>
 
-  <!-- PASSWORD OVERLAY -->
+  <!-- AUTH OVERLAY -->
   <div id="overlay">
     <div class="lock-icon">▓▓▓</div>
     <p class="overlay-title">Acceso restringido</p>
     <div class="pw-box">
-      <div class="pw-input-wrap">
-        <input id="pwInput" type="password" placeholder="contraseña" autocomplete="off" />
-      </div>
-      <p id="pwError">contraseña incorrecta</p>
-      <button id="pwBtn">Entrar</button>
+      <button id="signInBtn">Entrar con Google</button>
+      <p id="pwError">cuenta no autorizada</p>
     </div>
   </div>
 
@@ -434,7 +406,10 @@
   <div id="app">
     <header>
       <span class="logo">Miki<span>Pastebin</span></span>
-      <div class="status-dot" id="statusDot" title="desconectado"></div>
+      <div style="display:flex;align-items:center;gap:1rem;">
+        <button id="signOutBtn" title="Cerrar sesión">Salir</button>
+        <div class="status-dot" id="statusDot" title="desconectado"></div>
+      </div>
     </header>
     <div class="panes">
       <div class="pane">
@@ -472,6 +447,9 @@
     import { getDatabase, ref, onValue, set, remove }                 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     import { getStorage, ref as sRef, uploadBytesResumable,
              deleteObject }                                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut,
+             onAuthStateChanged }                                     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
     const firebaseConfig = {
       apiKey:        "PLACEHOLDER_API_KEY",
       authDomain:    "PLACEHOLDER_AUTH_DOMAIN",
@@ -479,46 +457,52 @@
       projectId:     "PLACEHOLDER_PROJECT_ID",
       storageBucket: "PLACEHOLDER_STORAGE_BUCKET",
     };
-    const PASSWORD_HASH = "PLACEHOLDER_PASSWORD_HASH";
 
-    /* ─── PASSWORD (SHA-256) ─── */
+    // Firebase web "apiKey" is NOT a secret — it only identifies the project.
+    // Real access control lives in the Realtime Database / Storage security
+    // rules, which must restrict read+write to the owner's auth.uid.
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth    = getAuth(firebaseApp);
+    const db      = getDatabase(firebaseApp);
+    const storage = getStorage(firebaseApp);
 
-    async function sha256(str) {
-      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-    }
+    /* ─── AUTH (Google sign-in) ─── */
 
-    const overlay = document.getElementById("overlay");
-    const appEl   = document.getElementById("app");
-    const pwInput = document.getElementById("pwInput");
-    const pwBtn   = document.getElementById("pwBtn");
-    const pwError = document.getElementById("pwError");
+    const overlay    = document.getElementById("overlay");
+    const appEl      = document.getElementById("app");
+    const signInBtn  = document.getElementById("signInBtn");
+    const signOutBtn = document.getElementById("signOutBtn");
+    const pwError    = document.getElementById("pwError");
 
-    async function tryUnlock() {
-      const hash = await sha256(pwInput.value);
-      if (hash === PASSWORD_HASH.trim()) {
+    signInBtn.addEventListener("click", async () => {
+      pwError.classList.remove("show");
+      try {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      } catch (err) {
+        pwError.textContent = "no se pudo iniciar sesión";
+        pwError.classList.add("show");
+      }
+    });
+
+    signOutBtn.addEventListener("click", () => signOut(auth));
+
+    // The actual authorisation (only the owner's account) is enforced
+    // server-side by the security rules. The UI just reflects auth state;
+    // an unauthorised signed-in user sees the shell but reads/writes fail.
+    let appStarted = false;
+    onAuthStateChanged(auth, user => {
+      if (user) {
         overlay.classList.add("hidden");
         appEl.classList.add("visible");
-        initFirebase();
+        if (!appStarted) { appStarted = true; initFirebase(); }
       } else {
-        pwInput.classList.remove("shake");
-        void pwInput.offsetWidth;
-        pwInput.classList.add("shake");
-        pwError.classList.add("show");
-        pwInput.value = "";
-        setTimeout(() => pwError.classList.remove("show"), 2000);
+        overlay.classList.remove("hidden");
+        appEl.classList.remove("visible");
       }
-    }
-
-    pwBtn.addEventListener("click", tryUnlock);
-    pwInput.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
+    });
 
     /* ─── FIREBASE ─── */
     function initFirebase() {
-      const firebaseApp = initializeApp(firebaseConfig);
-      const db      = getDatabase(firebaseApp);
-      const storage = getStorage(firebaseApp);
-
       const ref1 = ref(db, "paste/ordenador1");
       const ref2 = ref(db, "paste/ordenador2");
 

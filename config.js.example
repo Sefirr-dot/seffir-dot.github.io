@@ -7,4 +7,7 @@ export const firebaseConfig = {
   storageBucket:  "FIREBASE_STORAGE_BUCKET",
 };
 
-export const PASSWORD_HASH = "SHA256_DE_TU_CONTRASEÑA";
+// El "apiKey" web de Firebase NO es un secreto: solo identifica el proyecto.
+// La seguridad real está en las reglas de Realtime Database + Storage, que
+// restringen lectura/escritura a tu auth.uid (ver database.rules.json y
+// storage.rules). El acceso se controla con login de Google, no con contraseña.

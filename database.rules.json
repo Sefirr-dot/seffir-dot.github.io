@@ -1,0 +1,9 @@
+{
+  "//": "Realtime Database security rules. Apply in Firebase Console -> Realtime Database -> Rules.",
+  "//2": "Replace TU_UID_DE_GOOGLE with your own auth.uid (visible in Authentication -> Users after your first Google sign-in).",
+  "//3": "These rules make the whole DB private to a single account. Without them the data is public to the entire internet.",
+  "rules": {
+    ".read":  "auth != null && auth.uid === 'TU_UID_DE_GOOGLE'",
+    ".write": "auth != null && auth.uid === 'TU_UID_DE_GOOGLE'"
+  }
+}
