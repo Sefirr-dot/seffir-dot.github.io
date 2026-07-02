@@ -446,7 +446,7 @@
     import { initializeApp }                                          from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getDatabase, ref, onValue, set, remove }                 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
     import { getStorage, ref as sRef, uploadBytesResumable,
-             deleteObject }                                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+             getDownloadURL, deleteObject }                           from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup,
              signOut, onAuthStateChanged }                            from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -600,6 +600,19 @@
         await remove(ref(db, `files/${id}`));
       }
 
+      /* ── Limpieza de expirados (independiente de cambios en la DB) ── */
+      let latestFiles = {};
+      const deleting  = new Set();
+      function cleanupExpired() {
+        const now = Date.now();
+        for (const [id, meta] of Object.entries(latestFiles)) {
+          if (meta.expiresAt < now && !deleting.has(id)) {
+            deleting.add(id);
+            deleteFile(id, meta.path).finally(() => deleting.delete(id));
+          }
+        }
+      }
+
       /* ── Renderizar lista ── */
       function renderFiles(data) {
         filesList.innerHTML = "";
@@ -662,21 +675,20 @@
           el.textContent = formatCountdown(remaining);
           el.classList.toggle("expiring", remaining < 60000);
         });
+        cleanupExpired();   // borra archivos caducados aunque nada cambie en la DB
       }, 1000);
 
       /* ── Listener en tiempo real + limpieza ── */
       onValue(filesRef, snap => {
-        const data = snap.val() || {};
-        const now  = Date.now();
+        latestFiles = snap.val() || {};
+        const now   = Date.now();
 
         // Borrar expirados silenciosamente
-        for (const [id, meta] of Object.entries(data)) {
-          if (meta.expiresAt < now) deleteFile(id, meta.path);
-        }
+        cleanupExpired();
 
         // Filtrar expirados del render
         const active = Object.fromEntries(
-          Object.entries(data).filter(([, m]) => m.expiresAt >= now)
+          Object.entries(latestFiles).filter(([, m]) => m.expiresAt >= now)
         );
         renderFiles(active);
       });
@@ -709,8 +721,11 @@
           },
           async () => {
             try {
-              const encodedPath = encodeURIComponent(path).replace(/%2F/g, "%2F");
-              const url = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${encodedPath}?alt=media`;
+              // getDownloadURL returns a URL with a ?token=... that grants read
+              // access regardless of the locked-down Storage rules. Constructing
+              // the URL by hand gives an unauthenticated request → 403 now that
+              // reads are restricted to the owner's auth.uid.
+              const url = await getDownloadURL(task.snapshot.ref);
               await set(ref(db, `files/${id}`), {
                 name: file.name,
                 size: file.size,
